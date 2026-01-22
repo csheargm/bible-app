@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bible App - Interactive Study with Handwritten Notes</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+</head>
+<body>
+    <div id="app">
+        <!-- Header with controls -->
+        <header class="app-header">
+            <div class="header-left">
+                <button id="menuBtn" class="icon-btn" aria-label="Menu">☰</button>
+                <span class="app-title">Bible App</span>
+            </div>
+            <div class="header-center">
+                <select id="bookSelect" class="book-select">
+                    <option value="">Select Book</option>
+                </select>
+                <input type="number" id="chapterInput" class="chapter-input" min="1" placeholder="Ch">
+                <input type="number" id="verseInput" class="verse-input" min="1" placeholder="Vs">
+                <button id="goBtn" class="go-btn">Go</button>
+            </div>
+            <div class="header-right">
+                <button id="searchBtn" class="icon-btn" aria-label="Search">🔍</button>
+                <button id="aiBtn" class="icon-btn" aria-label="AI Research">🤖</button>
+                <button id="notesBtn" class="icon-btn" aria-label="Notes">📝</button>
+                <button id="syncBtn" class="icon-btn" aria-label="Sync">☁️</button>
+            </div>
+        </header>
+
+        <!-- Main content area -->
+        <main class="main-content">
+            <!-- Bible text display -->
+            <div id="bibleContainer" class="bible-container">
+                <div class="bible-page" id="biblePage">
+                    <div class="page-content" id="pageContent">
+                        <div class="loading-message">Loading Bible text...</div>
+                    </div>
+                </div>
+                
+                <!-- Canvas overlay for annotations -->
+                <canvas id="annotationCanvas" class="annotation-canvas"></canvas>
+            </div>
+
+            <!-- Side panels -->
+            <aside id="leftPanel" class="side-panel left-panel">
+                <div class="panel-header">
+                    <h3>Navigation</h3>
+                    <button class="close-btn" onclick="togglePanel('left')">×</button>
+                </div>
+                <div class="panel-content">
+                    <div id="bookList" class="book-list"></div>
+                </div>
+            </aside>
+
+            <aside id="rightPanel" class="side-panel right-panel">
+                <div class="panel-header">
+                    <h3>AI Research</h3>
+                    <button class="close-btn" onclick="togglePanel('right')">×</button>
+                </div>
+                <div class="panel-content">
+                    <div class="ai-settings">
+                        <label>AI Service:</label>
+                        <select id="aiService" class="ai-service-select">
+                            <option value="openai">OpenAI (GPT-4)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="local">Local LLM</option>
+                            <option value="custom">Custom Endpoint</option>
+                        </select>
+                        <input type="text" id="apiKey" class="api-key-input" placeholder="API Key">
+                        <input type="text" id="apiEndpoint" class="api-endpoint-input" placeholder="Custom endpoint URL" style="display:none">
+                    </div>
+                    <div class="selected-verse">
+                        <h4>Selected Text:</h4>
+                        <div id="selectedText" class="selected-text"></div>
+                    </div>
+                    <div class="ai-query">
+                        <textarea id="aiQuery" class="ai-query-input" placeholder="Ask about this verse..."></textarea>
+                        <button id="askAiBtn" class="ask-ai-btn">Research</button>
+                    </div>
+                    <div class="ai-response">
+                        <div id="aiResponse" class="ai-response-text"></div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Drawing toolbar -->
+        <div id="drawingToolbar" class="drawing-toolbar">
+            <button class="tool-btn active" data-tool="pen">✏️</button>
+            <button class="tool-btn" data-tool="highlighter">🖍️</button>
+            <button class="tool-btn" data-tool="eraser">🧹</button>
+            <input type="color" id="colorPicker" value="#000000" class="color-picker">
+            <input type="range" id="sizeSlider" min="1" max="20" value="2" class="size-slider">
+            <button class="tool-btn" id="undoBtn">↶</button>
+            <button class="tool-btn" id="redoBtn">↷</button>
+            <button class="tool-btn" id="clearBtn">🗑️</button>
+        </div>
+
+        <!-- Notes panel -->
+        <div id="notesPanel" class="notes-panel">
+            <div class="notes-header">
+                <h3>Study Notes</h3>
+                <button class="close-btn" onclick="toggleNotesPanel()">×</button>
+            </div>
+            <div class="notes-content">
+                <div id="notesList" class="notes-list"></div>
+                <div class="note-editor">
+                    <input type="text" id="noteTitle" class="note-title" placeholder="Note title...">
+                    <canvas id="noteCanvas" class="note-canvas"></canvas>
+                    <div class="note-actions">
+                        <button id="saveNoteBtn" class="save-note-btn">Save Note</button>
+                        <button id="clearNoteBtn" class="clear-note-btn">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings/Sync modal -->
+        <div id="syncModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Sync Settings</h2>
+                    <button class="close-btn" onclick="closeSyncModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="sync-option">
+                        <h3>Google Drive</h3>
+                        <button id="googleSignInBtn" class="sync-btn">Sign In with Google</button>
+                        <div id="googleStatus" class="sync-status"></div>
+                    </div>
+                    <div class="sync-option">
+                        <h3>Local Storage</h3>
+                        <button id="exportBtn" class="sync-btn">Export Notes</button>
+                        <button id="importBtn" class="sync-btn">Import Notes</button>
+                        <input type="file" id="importFile" accept=".json" style="display:none">
+                    </div>
+                    <div class="sync-option">
+                        <h3>Auto-save</h3>
+                        <label class="switch">
+                            <input type="checkbox" id="autoSaveToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="js/bible-data.js"></script>
+    <script src="js/drawing.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/ai-integration.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

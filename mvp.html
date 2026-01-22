@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bible App - MVP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Georgia, serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .content-area {
+            position: relative;
+            height: calc(100vh - 120px);
+            margin: 10px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .bible-text {
+            padding: 30px;
+            font-size: 18px;
+            line-height: 1.8;
+            color: #333;
+        }
+        
+        .verse {
+            display: inline;
+        }
+        
+        .verse-number {
+            font-size: 12px;
+            vertical-align: super;
+            color: #007AFF;
+            font-weight: bold;
+            margin-right: 2px;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .drawing-toolbar {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+        
+        .tool-btn {
+            padding: 8px 12px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .tool-btn.active {
+            border-color: #007AFF;
+            background: #f0f8ff;
+        }
+        
+        .color-picker {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .size-slider {
+            width: 80px;
+        }
+        
+        .info {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="title">📖 Bible Study</span>
+        <div class="controls">
+            <select id="bookSelect">
+                <option value="John 3">John 3</option>
+                <option value="Genesis 1">Genesis 1</option>
+                <option value="Psalm 23">Psalm 23</option>
+                <option value="Romans 8">Romans 8</option>
+            </select>
+            <button onclick="clearCanvas()">Clear</button>
+            <button onclick="saveNotes()">Save</button>
+        </div>
+    </div>
+    
+    <div class="content-area" id="contentArea">
+        <div class="bible-text" id="bibleText">
+            <h2>John 3</h2>
+            <p>
+                <span class="verse"><span class="verse-number">16</span>For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.</span>
+                <span class="verse"><span class="verse-number">17</span>For God sent not his Son into the world to condemn the world; but that the world through him might be saved.</span>
+                <span class="verse"><span class="verse-number">18</span>He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God.</span>
+            </p>
+        </div>
+        <canvas id="canvas" class="canvas-overlay"></canvas>
+    </div>
+    
+    <div class="drawing-toolbar">
+        <button class="tool-btn active" data-tool="pen" onclick="selectTool('pen')">✏️</button>
+        <button class="tool-btn" data-tool="highlighter" onclick="selectTool('highlighter')">🖍️</button>
+        <button class="tool-btn" data-tool="eraser" onclick="selectTool('eraser')">🧹</button>
+        <input type="color" id="colorPicker" class="color-picker" value="#000000">
+        <input type="range" id="sizeSlider" class="size-slider" min="1" max="10" value="2">
+        <button class="tool-btn" onclick="undo()">↶</button>
+    </div>
+    
+    <div class="info" id="info">Ready</div>
+    
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const info = document.getElementById('info');
+        
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let paths = [];
+        let currentPath = [];
+        let currentColor = '#000000';
+        let currentSize = 2;
+        
+        // Resize canvas
+        function resizeCanvas() {
+            const container = document.getElementById('contentArea');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            redrawAll();
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Drawing events
+        canvas.addEventListener('pointerdown', startDrawing);
+        canvas.addEventListener('pointermove', draw);
+        canvas.addEventListener('pointerup', stopDrawing);
+        canvas.addEventListener('pointercancel', stopDrawing);
+        
+        function startDrawing(e) {
+            if (!e.isPrimary) return;
+            isDrawing = true;
+            currentPath = [];
+            
+            const rect = canvas.getBoundingClientRect();
+            const point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                pressure: e.pressure || 0.5,
+                pointerType: e.pointerType
+            };
+            
+            currentPath.push(point);
+            
+            info.textContent = e.pointerType === 'pen' ? 
+                `Pencil: ${e.pressure.toFixed(2)}` : 'Touch';
+        }
+        
+        function draw(e) {
+            if (!isDrawing || !e.isPrimary) return;
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            const point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                pressure: e.pressure || 0.5,
+                pointerType: e.pointerType
+            };
+            
+            currentPath.push(point);
+            
+            if (currentPath.length > 1) {
+                const prev = currentPath[currentPath.length - 2];
+                drawLine(prev, point);
+            }
+            
+            if (e.pointerType === 'pen') {
+                info.textContent = `Pencil: ${e.pressure.toFixed(2)}`;
+            }
+        }
+        
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            if (currentPath.length > 0) {
+                paths.push({
+                    tool: currentTool,
+                    color: currentColor,
+                    size: currentSize,
+                    path: [...currentPath]
+                });
+                saveToLocal();
+            }
+            currentPath = [];
+        }
+        
+        function drawLine(from, to) {
+            ctx.save();
+            
+            if (currentTool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = currentSize * 5;
+            } else if (currentTool === 'highlighter') {
+                ctx.globalAlpha = 0.3;
+                ctx.lineWidth = currentSize * 8;
+                ctx.strokeStyle = currentColor;
+            } else {
+                // Pen with pressure sensitivity
+                let width = currentSize;
+                if (to.pointerType === 'pen') {
+                    width = currentSize * (0.5 + to.pressure * 1.5);
+                }
+                ctx.lineWidth = width;
+                ctx.strokeStyle = currentColor;
+            }
+            
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+        
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+        }
+        
+        function clearCanvas() {
+            if (confirm('Clear all drawings?')) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                paths = [];
+                saveToLocal();
+            }
+        }
+        
+        function undo() {
+            if (paths.length > 0) {
+                paths.pop();
+                redrawAll();
+                saveToLocal();
+            }
+        }
+        
+        function redrawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (const pathData of paths) {
+                currentTool = pathData.tool;
+                currentColor = pathData.color;
+                currentSize = pathData.size;
+                
+                for (let i = 1; i < pathData.path.length; i++) {
+                    drawLine(pathData.path[i-1], pathData.path[i]);
+                }
+            }
+        }
+        
+        function saveToLocal() {
+            const book = document.getElementById('bookSelect').value;
+            localStorage.setItem(`bible-notes-${book}`, JSON.stringify(paths));
+        }
+        
+        function loadFromLocal() {
+            const book = document.getElementById('bookSelect').value;
+            const saved = localStorage.getItem(`bible-notes-${book}`);
+            if (saved) {
+                paths = JSON.parse(saved);
+                redrawAll();
+            }
+        }
+        
+        function saveNotes() {
+            const dataURL = canvas.toDataURL();
+            const book = document.getElementById('bookSelect').value;
+            const notes = {
+                book,
+                image: dataURL,
+                paths,
+                date: new Date().toISOString()
+            };
+            
+            localStorage.setItem(`bible-study-${book}`, JSON.stringify(notes));
+            alert('Notes saved locally!');
+        }
+        
+        // UI controls
+        document.getElementById('colorPicker').addEventListener('change', (e) => {
+            currentColor = e.target.value;
+        });
+        
+        document.getElementById('sizeSlider').addEventListener('input', (e) => {
+            currentSize = parseInt(e.target.value);
+        });
+        
+        document.getElementById('bookSelect').addEventListener('change', (e) => {
+            const passages = {
+                'John 3': '<h2>John 3</h2><p><span class="verse"><span class="verse-number">16</span>For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.</span> <span class="verse"><span class="verse-number">17</span>For God sent not his Son into the world to condemn the world; but that the world through him might be saved.</span></p>',
+                'Genesis 1': '<h2>Genesis 1</h2><p><span class="verse"><span class="verse-number">1</span>In the beginning God created the heaven and the earth.</span> <span class="verse"><span class="verse-number">2</span>And the earth was without form, and void; and darkness was upon the face of the deep.</span></p>',
+                'Psalm 23': '<h2>Psalm 23</h2><p><span class="verse"><span class="verse-number">1</span>The Lord is my shepherd; I shall not want.</span> <span class="verse"><span class="verse-number">2</span>He maketh me to lie down in green pastures: he leadeth me beside the still waters.</span></p>',
+                'Romans 8': '<h2>Romans 8</h2><p><span class="verse"><span class="verse-number">1</span>There is therefore now no condemnation to them which are in Christ Jesus, who walk not after the flesh, but after the Spirit.</span></p>'
+            };
+            
+            document.getElementById('bibleText').innerHTML = passages[e.target.value];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            paths = [];
+            loadFromLocal();
+        });
+        
+        // Load saved notes on start
+        loadFromLocal();
+        
+        // Prevent scrolling while drawing
+        document.addEventListener('touchstart', (e) => {
+            if (e.target === canvas) e.preventDefault();
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (e.target === canvas) e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
