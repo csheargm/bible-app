@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bible App - Enhanced MVP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Georgia, serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .content-area {
+            position: relative;
+            height: calc(100vh - 120px);
+            margin: 10px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        .bible-text {
+            display: flex;
+            gap: 30px;
+            padding: 30px;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #333;
+        }
+        
+        .bible-column {
+            flex: 1;
+            padding: 20px;
+            border-right: 1px solid #e0e0e0;
+        }
+        
+        .bible-column:last-child {
+            border-right: none;
+        }
+        
+        .bible-column h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .chinese-text {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-size: 17px;
+        }
+        
+        .english-text {
+            font-family: Georgia, serif;
+            font-size: 16px;
+        }
+        
+        .verse {
+            display: inline;
+            position: relative;
+        }
+        
+        .verse-number {
+            font-size: 12px;
+            vertical-align: super;
+            color: #007AFF;
+            font-weight: bold;
+            margin-right: 2px;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .drawing-toolbar {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+        
+        .tool-btn {
+            padding: 8px 12px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .tool-btn.active {
+            border-color: #007AFF;
+            background: #f0f8ff;
+        }
+        
+        .mode-indicator {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            background: rgba(0, 123, 255, 0.9);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 200;
+        }
+        
+        /* Annotation buttons */
+        .annotation-button {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            z-index: 50;
+            display: none;
+        }
+        
+        .annotation-button.visible {
+            display: block;
+        }
+        
+        /* Note window */
+        .note-window {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            height: 70%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            z-index: 300;
+            display: none;
+            flex-direction: column;
+        }
+        
+        .note-window.open {
+            display: flex;
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            background: #f8f8f8;
+            border-radius: 15px 15px 0 0;
+        }
+        
+        .note-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .note-close {
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: #ff3b30;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .note-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .note-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .note-textarea {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            border: none;
+            font-size: 16px;
+            line-height: 1.6;
+            resize: none;
+            background: transparent;
+            z-index: 5;
+            display: none;
+        }
+        
+        .note-textarea.active {
+            display: block;
+        }
+        
+        .note-footer {
+            display: flex;
+            gap: 10px;
+            padding: 10px 20px;
+            border-top: 1px solid #ddd;
+            background: #f8f8f8;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .note-tool-btn {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .note-tool-btn.active {
+            background: #007AFF;
+            color: white;
+            border-color: #007AFF;
+        }
+        
+        /* Input mode switcher */
+        .input-mode-switch {
+            position: fixed;
+            top: 70px;
+            left: 10px;
+            display: flex;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 200;
+        }
+        
+        .mode-btn {
+            padding: 8px 15px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 20px;
+        }
+        
+        .mode-btn.active {
+            background: #007AFF;
+            color: white;
+        }
+        
+        /* Text input overlay */
+        .text-input-overlay {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #007AFF;
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 30;
+            display: none;
+        }
+        
+        .text-input-overlay.active {
+            display: block;
+        }
+        
+        .text-input-field {
+            width: 200px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="title">📖 Bible App</span>
+        <div class="controls">
+            <select id="bookSelect">
+                <option value="John 3">John 3</option>
+                <option value="Genesis 1">Genesis 1</option>
+                <option value="Psalm 23">Psalm 23</option>
+                <option value="Romans 8">Romans 8</option>
+            </select>
+            <button onclick="clearCanvas()">Clear</button>
+            <button onclick="saveNotes()">Save</button>
+        </div>
+    </div>
+    
+    <!-- Input mode switcher -->
+    <div class="input-mode-switch">
+        <button class="mode-btn active" onclick="setInputMode('draw')">✏️ Draw</button>
+        <button class="mode-btn" onclick="setInputMode('type')">⌨️ Type</button>
+    </div>
+    
+    <!-- Mode indicator -->
+    <div class="mode-indicator" id="modeIndicator">Pen Mode</div>
+    
+    <div class="content-area" id="contentArea">
+        <div class="bible-text" id="bibleText">
+            <div class="bible-column chinese-text">
+                <h3>中文和合本 (CUV)</h3>
+                <h2>约翰福音 3</h2>
+                <p>
+                    <span class="verse" data-verse="16"><span class="verse-number">16</span>神爱世人，甚至将他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。</span>
+                    <span class="verse" data-verse="17"><span class="verse-number">17</span>因为神差他的儿子降世，不是要定世人的罪，乃是要叫世人因他得救。</span>
+                    <span class="verse" data-verse="18"><span class="verse-number">18</span>信他的人，不被定罪；不信的人，罪已经定了，因为他不信神独生子的名。</span>
+                </p>
+            </div>
+            <div class="bible-column english-text">
+                <h3>English NIV</h3>
+                <h2>John 3</h2>
+                <p>
+                    <span class="verse" data-verse="16"><span class="verse-number">16</span>For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.</span>
+                    <span class="verse" data-verse="17"><span class="verse-number">17</span>For God did not send his Son into the world to condemn the world, but to save the world through him.</span>
+                    <span class="verse" data-verse="18"><span class="verse-number">18</span>Whoever believes in him is not condemned, but whoever does not believe stands condemned already because they have not believed in the name of God's one and only Son.</span>
+                </p>
+            </div>
+        </div>
+        <canvas id="canvas" class="canvas-overlay"></canvas>
+        
+        <!-- Text input overlay for Scribble -->
+        <div class="text-input-overlay" id="textInputOverlay">
+            <input type="text" class="text-input-field" id="textInputField" placeholder="Type here...">
+        </div>
+        
+        <!-- Annotation button -->
+        <button class="annotation-button" id="annotationBtn" onclick="openNoteWindow()">📝</button>
+    </div>
+    
+    <div class="drawing-toolbar" id="drawingToolbar">
+        <button class="tool-btn active" data-tool="pen" onclick="selectTool('pen')">✏️</button>
+        <button class="tool-btn" data-tool="highlighter" onclick="selectTool('highlighter')">🖍️</button>
+        <button class="tool-btn" data-tool="eraser" onclick="selectTool('eraser')">🧹</button>
+        <input type="color" id="colorPicker" style="width: 40px; height: 40px; border: 2px solid #ddd; border-radius: 6px;" value="#000000">
+        <input type="range" id="sizeSlider" style="width: 80px;" min="1" max="10" value="2">
+        <button class="tool-btn" onclick="undo()">↶</button>
+    </div>
+    
+    <!-- Note window -->
+    <div class="note-window" id="noteWindow">
+        <div class="note-header">
+            <span class="note-title" id="noteWindowTitle">Extended Note</span>
+            <button class="note-close" onclick="closeNoteWindow()">×</button>
+        </div>
+        <div class="note-content">
+            <canvas id="noteCanvas" class="note-canvas"></canvas>
+            <textarea class="note-textarea" id="noteTextarea" placeholder="Type or paste your research notes here..."></textarea>
+        </div>
+        <div class="note-footer">
+            <button class="note-tool-btn active" onclick="setNoteMode('draw')">✏️ Draw</button>
+            <button class="note-tool-btn" onclick="setNoteMode('type')">⌨️ Type</button>
+            <button class="note-tool-btn" onclick="clearNoteCanvas()">Clear</button>
+            <button class="note-tool-btn" onclick="saveExtendedNote()">Save</button>
+        </div>
+    </div>
+    
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const noteCanvas = document.getElementById('noteCanvas');
+        const noteCtx = noteCanvas.getContext('2d');
+        
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let paths = [];
+        let currentPath = [];
+        let currentColor = '#000000';
+        let currentSize = 2;
+        let inputMode = 'draw';
+        let noteMode = 'draw';
+        let annotations = [];
+        let lastAnnotation = null;
+        let doubleTapTimer = null;
+        
+        // Extended notes storage
+        let extendedNotes = {};
+        let currentNoteId = null;
+        
+        // Resize canvases
+        function resizeCanvas() {
+            const container = document.getElementById('contentArea');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            redrawAll();
+            
+            // Resize note canvas
+            const noteContent = document.querySelector('.note-content');
+            if (noteContent) {
+                noteCanvas.width = noteContent.clientWidth;
+                noteCanvas.height = noteContent.clientHeight;
+            }
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Apple Pencil double-tap detection
+        let lastTapTime = 0;
+        canvas.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'pen') {
+                const currentTime = Date.now();
+                const tapInterval = currentTime - lastTapTime;
+                
+                // Double-tap detected (within 300ms)
+                if (tapInterval < 300 && tapInterval > 50) {
+                    toggleEraser();
+                    lastTapTime = 0;
+                } else {
+                    lastTapTime = currentTime;
+                    if (inputMode === 'draw') {
+                        startDrawing(e);
+                    }
+                }
+            } else if (inputMode === 'draw') {
+                startDrawing(e);
+            }
+        });
+        
+        canvas.addEventListener('pointermove', (e) => {
+            if (inputMode === 'draw') {
+                draw(e);
+            }
+        });
+        
+        canvas.addEventListener('pointerup', (e) => {
+            if (inputMode === 'draw') {
+                stopDrawing(e);
+            }
+        });
+        
+        canvas.addEventListener('pointercancel', stopDrawing);
+        
+        // Toggle eraser with double-tap
+        function toggleEraser() {
+            if (currentTool === 'eraser') {
+                selectTool('pen');
+            } else {
+                selectTool('eraser');
+            }
+        }
+        
+        // Input mode switching
+        function setInputMode(mode) {
+            inputMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (mode === 'type') {
+                canvas.style.pointerEvents = 'none';
+                document.getElementById('drawingToolbar').style.opacity = '0.5';
+                document.getElementById('modeIndicator').textContent = 'Type Mode';
+                enableTextInput();
+            } else {
+                canvas.style.pointerEvents = 'auto';
+                document.getElementById('drawingToolbar').style.opacity = '1';
+                document.getElementById('modeIndicator').textContent = currentTool === 'eraser' ? 'Eraser Mode' : 'Pen Mode';
+                disableTextInput();
+            }
+        }
+        
+        // Enable text input on Bible text
+        function enableTextInput() {
+            const bibleText = document.getElementById('bibleText');
+            bibleText.contentEditable = true;
+            bibleText.style.cursor = 'text';
+        }
+        
+        function disableTextInput() {
+            const bibleText = document.getElementById('bibleText');
+            bibleText.contentEditable = false;
+            bibleText.style.cursor = 'default';
+        }
+        
+        // Drawing functions
+        function startDrawing(e) {
+            if (!e.isPrimary) return;
+            isDrawing = true;
+            currentPath = [];
+            
+            const rect = canvas.getBoundingClientRect();
+            const point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                pressure: e.pressure || 0.5,
+                pointerType: e.pointerType
+            };
+            
+            currentPath.push(point);
+        }
+        
+        function draw(e) {
+            if (!isDrawing || !e.isPrimary) return;
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            const point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                pressure: e.pressure || 0.5,
+                pointerType: e.pointerType
+            };
+            
+            currentPath.push(point);
+            
+            if (currentPath.length > 1) {
+                const prev = currentPath[currentPath.length - 2];
+                drawLine(prev, point, ctx, currentTool);
+            }
+        }
+        
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            if (currentPath.length > 0) {
+                const pathData = {
+                    tool: currentTool,
+                    color: currentColor,
+                    size: currentSize,
+                    path: [...currentPath]
+                };
+                paths.push(pathData);
+                saveToLocal();
+                
+                // Check if annotation and show button
+                checkForAnnotation(pathData);
+            }
+            currentPath = [];
+        }
+        
+        function drawLine(from, to, context, tool) {
+            context.save();
+            
+            if (tool === 'eraser') {
+                context.globalCompositeOperation = 'destination-out';
+                context.lineWidth = currentSize * 5;
+            } else if (tool === 'highlighter') {
+                context.globalAlpha = 0.3;
+                context.lineWidth = currentSize * 8;
+                context.strokeStyle = currentColor;
+            } else {
+                // Pen with pressure sensitivity
+                let width = currentSize;
+                if (to.pointerType === 'pen') {
+                    width = currentSize * (0.5 + to.pressure * 1.5);
+                }
+                context.lineWidth = width;
+                context.strokeStyle = currentColor;
+            }
+            
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+            context.beginPath();
+            context.moveTo(from.x, from.y);
+            context.lineTo(to.x, to.y);
+            context.stroke();
+            
+            context.restore();
+        }
+        
+        // Check for circles or highlights
+        function checkForAnnotation(pathData) {
+            if (pathData.tool === 'highlighter' || isCircleShape(pathData.path)) {
+                const bounds = getPathBounds(pathData.path);
+                showAnnotationButton(bounds);
+                lastAnnotation = {
+                    id: Date.now(),
+                    pathData: pathData,
+                    bounds: bounds,
+                    verse: getVerseAtPosition(bounds)
+                };
+                annotations.push(lastAnnotation);
+            }
+        }
+        
+        function isCircleShape(path) {
+            if (path.length < 10) return false;
+            
+            const first = path[0];
+            const last = path[path.length - 1];
+            const distance = Math.sqrt(Math.pow(last.x - first.x, 2) + Math.pow(last.y - first.y, 2));
+            
+            // Check if start and end are close (closed shape)
+            return distance < 50;
+        }
+        
+        function getPathBounds(path) {
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+            
+            for (const point of path) {
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+            }
+            
+            return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+        }
+        
+        function getVerseAtPosition(bounds) {
+            // Simple implementation - would need more sophisticated detection
+            const centerY = bounds.y + bounds.height / 2;
+            const verses = document.querySelectorAll('.verse');
+            for (const verse of verses) {
+                const rect = verse.getBoundingClientRect();
+                const containerRect = document.getElementById('contentArea').getBoundingClientRect();
+                const relativeTop = rect.top - containerRect.top;
+                const relativeBottom = rect.bottom - containerRect.top;
+                
+                if (centerY >= relativeTop && centerY <= relativeBottom) {
+                    return verse.dataset.verse;
+                }
+            }
+            return null;
+        }
+        
+        function showAnnotationButton(bounds) {
+            const btn = document.getElementById('annotationBtn');
+            btn.style.left = (bounds.x + bounds.width + 10) + 'px';
+            btn.style.top = (bounds.y + bounds.height / 2 - 15) + 'px';
+            btn.classList.add('visible');
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                btn.classList.remove('visible');
+            }, 5000);
+        }
+        
+        // Note window functions
+        function openNoteWindow() {
+            const noteWindow = document.getElementById('noteWindow');
+            noteWindow.classList.add('open');
+            
+            // Create or load note for this annotation
+            if (lastAnnotation) {
+                currentNoteId = lastAnnotation.id;
+                const verse = lastAnnotation.verse || 'General';
+                document.getElementById('noteWindowTitle').textContent = `Note for Verse ${verse}`;
+                
+                // Load existing note if available
+                if (extendedNotes[currentNoteId]) {
+                    loadExtendedNote(extendedNotes[currentNoteId]);
+                }
+            }
+            
+            // Hide annotation button
+            document.getElementById('annotationBtn').classList.remove('visible');
+            
+            // Setup note canvas
+            resizeCanvas();
+        }
+        
+        function closeNoteWindow() {
+            document.getElementById('noteWindow').classList.remove('open');
+            saveExtendedNote();
+        }
+        
+        function setNoteMode(mode) {
+            noteMode = mode;
+            const textarea = document.getElementById('noteTextarea');
+            
+            document.querySelectorAll('.note-tool-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            if (mode === 'type') {
+                textarea.classList.add('active');
+                textarea.focus();
+            } else {
+                textarea.classList.remove('active');
+            }
+        }
+        
+        function saveExtendedNote() {
+            if (!currentNoteId) return;
+            
+            const noteData = {
+                id: currentNoteId,
+                canvasData: noteCanvas.toDataURL(),
+                textContent: document.getElementById('noteTextarea').value,
+                timestamp: Date.now()
+            };
+            
+            extendedNotes[currentNoteId] = noteData;
+            localStorage.setItem('extended-notes', JSON.stringify(extendedNotes));
+        }
+        
+        function loadExtendedNote(noteData) {
+            // Load canvas data
+            const img = new Image();
+            img.onload = () => {
+                noteCtx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
+                noteCtx.drawImage(img, 0, 0);
+            };
+            img.src = noteData.canvasData;
+            
+            // Load text content
+            document.getElementById('noteTextarea').value = noteData.textContent || '';
+        }
+        
+        function clearNoteCanvas() {
+            if (noteMode === 'draw') {
+                noteCtx.clearRect(0, 0, noteCanvas.width, noteCanvas.height);
+            } else {
+                document.getElementById('noteTextarea').value = '';
+            }
+        }
+        
+        // Note canvas drawing
+        let isDrawingNote = false;
+        let noteCurrentPath = [];
+        
+        noteCanvas.addEventListener('pointerdown', (e) => {
+            if (noteMode === 'draw') {
+                isDrawingNote = true;
+                noteCurrentPath = [];
+                
+                const rect = noteCanvas.getBoundingClientRect();
+                noteCurrentPath.push({
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    pressure: e.pressure || 0.5
+                });
+            }
+        });
+        
+        noteCanvas.addEventListener('pointermove', (e) => {
+            if (isDrawingNote && noteMode === 'draw') {
+                const rect = noteCanvas.getBoundingClientRect();
+                const point = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top,
+                    pressure: e.pressure || 0.5
+                };
+                
+                if (noteCurrentPath.length > 0) {
+                    drawLine(noteCurrentPath[noteCurrentPath.length - 1], point, noteCtx, 'pen');
+                }
+                noteCurrentPath.push(point);
+            }
+        });
+        
+        noteCanvas.addEventListener('pointerup', () => {
+            isDrawingNote = false;
+            noteCurrentPath = [];
+        });
+        
+        // Tool selection
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+            
+            // Update mode indicator
+            const indicator = document.getElementById('modeIndicator');
+            if (tool === 'eraser') {
+                indicator.textContent = 'Eraser Mode';
+                indicator.style.background = 'rgba(255, 59, 48, 0.9)';
+            } else if (tool === 'highlighter') {
+                indicator.textContent = 'Highlighter Mode';
+                indicator.style.background = 'rgba(255, 204, 0, 0.9)';
+            } else {
+                indicator.textContent = 'Pen Mode';
+                indicator.style.background = 'rgba(0, 123, 255, 0.9)';
+            }
+        }
+        
+        function clearCanvas() {
+            if (confirm('Clear all drawings?')) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                paths = [];
+                annotations = [];
+                saveToLocal();
+            }
+        }
+        
+        function undo() {
+            if (paths.length > 0) {
+                paths.pop();
+                redrawAll();
+                saveToLocal();
+            }
+        }
+        
+        function redrawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (const pathData of paths) {
+                currentTool = pathData.tool;
+                currentColor = pathData.color;
+                currentSize = pathData.size;
+                
+                for (let i = 1; i < pathData.path.length; i++) {
+                    drawLine(pathData.path[i-1], pathData.path[i], ctx, pathData.tool);
+                }
+            }
+        }
+        
+        function saveToLocal() {
+            const book = document.getElementById('bookSelect').value;
+            localStorage.setItem(`bible-notes-v2-${book}`, JSON.stringify(paths));
+            localStorage.setItem(`bible-annotations-${book}`, JSON.stringify(annotations));
+        }
+        
+        function loadFromLocal() {
+            const book = document.getElementById('bookSelect').value;
+            const saved = localStorage.getItem(`bible-notes-v2-${book}`);
+            const savedAnnotations = localStorage.getItem(`bible-annotations-${book}`);
+            const savedExtended = localStorage.getItem('extended-notes');
+            
+            if (saved) {
+                paths = JSON.parse(saved);
+                redrawAll();
+            }
+            if (savedAnnotations) {
+                annotations = JSON.parse(savedAnnotations);
+            }
+            if (savedExtended) {
+                extendedNotes = JSON.parse(savedExtended);
+            }
+        }
+        
+        function saveNotes() {
+            const dataURL = canvas.toDataURL();
+            const book = document.getElementById('bookSelect').value;
+            const notes = {
+                book,
+                image: dataURL,
+                paths,
+                annotations,
+                extendedNotes,
+                date: new Date().toISOString()
+            };
+            
+            localStorage.setItem(`bible-study-v2-${book}`, JSON.stringify(notes));
+            alert('Notes saved!');
+        }
+        
+        // UI controls
+        document.getElementById('colorPicker').addEventListener('change', (e) => {
+            currentColor = e.target.value;
+        });
+        
+        document.getElementById('sizeSlider').addEventListener('input', (e) => {
+            currentSize = parseInt(e.target.value);
+        });
+        
+        document.getElementById('bookSelect').addEventListener('change', (e) => {
+            const passages = {
+                'John 3': `
+                    <div class="bible-column chinese-text">
+                        <h3>中文和合本 (CUV)</h3>
+                        <h2>约翰福音 3</h2>
+                        <p>
+                            <span class="verse" data-verse="16"><span class="verse-number">16</span>神爱世人，甚至将他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。</span>
+                            <span class="verse" data-verse="17"><span class="verse-number">17</span>因为神差他的儿子降世，不是要定世人的罪，乃是要叫世人因他得救。</span>
+                        </p>
+                    </div>
+                    <div class="bible-column english-text">
+                        <h3>English NIV</h3>
+                        <h2>John 3</h2>
+                        <p>
+                            <span class="verse" data-verse="16"><span class="verse-number">16</span>For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.</span>
+                            <span class="verse" data-verse="17"><span class="verse-number">17</span>For God did not send his Son into the world to condemn the world, but to save the world through him.</span>
+                        </p>
+                    </div>`,
+                'Genesis 1': `
+                    <div class="bible-column chinese-text">
+                        <h3>中文和合本 (CUV)</h3>
+                        <h2>创世记 1</h2>
+                        <p>
+                            <span class="verse" data-verse="1"><span class="verse-number">1</span>起初，神创造天地。</span>
+                            <span class="verse" data-verse="2"><span class="verse-number">2</span>地是空虚混沌，渊面黑暗；神的灵运行在水面上。</span>
+                        </p>
+                    </div>
+                    <div class="bible-column english-text">
+                        <h3>English NIV</h3>
+                        <h2>Genesis 1</h2>
+                        <p>
+                            <span class="verse" data-verse="1"><span class="verse-number">1</span>In the beginning God created the heavens and the earth.</span>
+                            <span class="verse" data-verse="2"><span class="verse-number">2</span>Now the earth was formless and empty, darkness was over the surface of the deep, and the Spirit of God was hovering over the waters.</span>
+                        </p>
+                    </div>`,
+                'Psalm 23': `
+                    <div class="bible-column chinese-text">
+                        <h3>中文和合本 (CUV)</h3>
+                        <h2>诗篇 23</h2>
+                        <p>
+                            <span class="verse" data-verse="1"><span class="verse-number">1</span>耶和华是我的牧者，我必不至缺乏。</span>
+                            <span class="verse" data-verse="2"><span class="verse-number">2</span>他使我躺卧在青草地上，领我在可安歇的水边。</span>
+                        </p>
+                    </div>
+                    <div class="bible-column english-text">
+                        <h3>English NIV</h3>
+                        <h2>Psalm 23</h2>
+                        <p>
+                            <span class="verse" data-verse="1"><span class="verse-number">1</span>The Lord is my shepherd, I lack nothing.</span>
+                            <span class="verse" data-verse="2"><span class="verse-number">2</span>He makes me lie down in green pastures, he leads me beside quiet waters.</span>
+                        </p>
+                    </div>`,
+                'Romans 8': `
+                    <div class="bible-column chinese-text">
+                        <h3>中文和合本 (CUV)</h3>
+                        <h2>罗马书 8</h2>
+                        <p>
+                            <span class="verse" data-verse="1"><span class="verse-number">1</span>如今，那些在基督耶稣里的就不定罪了。</span>
+                        </p>
+                    </div>
+                    <div class="bible-column english-text">
+                        <h3>English NIV</h3>
+                        <h2>Romans 8</h2>
+                        <p>
+                            <span class="verse" data-verse="1"><span class="verse-number">1</span>Therefore, there is now no condemnation for those who are in Christ Jesus.</span>
+                        </p>
+                    </div>`
+            };
+            
+            document.getElementById('bibleText').innerHTML = passages[e.target.value];
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            paths = [];
+            annotations = [];
+            loadFromLocal();
+        });
+        
+        // Load saved notes on start
+        loadFromLocal();
+        
+        // Prevent scrolling while drawing
+        document.addEventListener('touchstart', (e) => {
+            if (e.target === canvas || e.target === noteCanvas) e.preventDefault();
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (e.target === canvas || e.target === noteCanvas) e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
