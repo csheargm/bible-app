@@ -370,6 +370,7 @@
                 <option value="Psalm 23">Psalm 23</option>
                 <option value="Romans 8">Romans 8</option>
             </select>
+            <button onclick="showAllNotes()">Show Notes</button>
             <button onclick="clearCanvas()">Clear</button>
             <button onclick="saveNotes()">Save</button>
         </div>
@@ -412,8 +413,8 @@
             <input type="text" class="text-input-field" id="textInputField" placeholder="Type here...">
         </div>
         
-        <!-- Annotation button -->
-        <button class="annotation-button" id="annotationBtn" onclick="openNoteWindow()">📝</button>
+        <!-- Annotation buttons container -->
+        <div id="annotationButtons"></div>
     </div>
     
     <div class="drawing-toolbar" id="drawingToolbar">
@@ -746,14 +747,26 @@
         }
         
         function showAnnotationButton(bounds, annotationId = null) {
-            const btn = document.getElementById('annotationBtn');
+            const container = document.getElementById('annotationButtons');
+            
+            // Check if button already exists for this annotation
+            let btn = document.getElementById(`btn-${annotationId || 'new'}`);
+            
+            if (!btn) {
+                btn = document.createElement('button');
+                btn.className = 'annotation-button';
+                btn.id = `btn-${annotationId || 'new'}`;
+                btn.onclick = () => openNoteWindow(annotationId);
+                container.appendChild(btn);
+            }
+            
             btn.style.left = (bounds.x + bounds.width + 10) + 'px';
             btn.style.top = (bounds.y + bounds.height / 2 - 15) + 'px';
             btn.classList.add('visible');
             
             // If specific annotation ID provided, set it as the last annotation
             if (annotationId) {
-                lastAnnotation = annotations.find(a => a.id === annotationId);
+                btn.setAttribute('data-annotation-id', annotationId);
                 // Check if this annotation has notes and add green color
                 if (extendedNotes[annotationId]) {
                     btn.classList.add('has-notes');
@@ -763,22 +776,62 @@
                     btn.innerHTML = '📝';
                 }
             } else {
+                lastAnnotation = annotations[annotations.length - 1];
                 btn.classList.remove('has-notes');
                 btn.innerHTML = '📝';
             }
             
-            // Auto-hide after 5 seconds for new annotations, longer for existing
+            // Auto-hide after delay
             const hideDelay = annotationId ? 10000 : 5000;
-            setTimeout(() => {
+            btn.hideTimeout = setTimeout(() => {
                 btn.classList.remove('visible');
-                btn.classList.remove('has-notes');
+                setTimeout(() => {
+                    if (!btn.classList.contains('visible')) {
+                        btn.remove();
+                    }
+                }, 500);
             }, hideDelay);
         }
         
+        function showAllNotes() {
+            // Clear any existing timeouts
+            const buttons = document.querySelectorAll('.annotation-button');
+            buttons.forEach(btn => {
+                if (btn.hideTimeout) clearTimeout(btn.hideTimeout);
+                btn.remove();
+            });
+            
+            // Show all annotation buttons
+            annotations.forEach(annotation => {
+                showAnnotationButton(annotation.bounds, annotation.id);
+            });
+            
+            // Show message if no annotations
+            if (annotations.length === 0) {
+                alert('No annotations found on this page. Circle or highlight text to create annotations.');
+            }
+        }
+        
+        function hideAllNotes() {
+            const buttons = document.querySelectorAll('.annotation-button');
+            buttons.forEach(btn => {
+                btn.classList.remove('visible');
+                setTimeout(() => btn.remove(), 500);
+            });
+        }
+        
         // Note window functions with proper saving
-        function openNoteWindow() {
+        function openNoteWindow(annotationId = null) {
             const noteWindow = document.getElementById('noteWindow');
             noteWindow.classList.add('open');
+            
+            // Use provided annotation ID or lastAnnotation
+            if (annotationId) {
+                const annotation = annotations.find(a => a.id === annotationId);
+                if (annotation) {
+                    lastAnnotation = annotation;
+                }
+            }
             
             // Create or load note for this annotation
             if (lastAnnotation) {
@@ -795,8 +848,8 @@
                 }
             }
             
-            // Hide annotation button
-            document.getElementById('annotationBtn').classList.remove('visible');
+            // Hide all annotation buttons
+            hideAllNotes();
             
             // Setup note canvas
             resizeCanvas();
