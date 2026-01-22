@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Bible App - Enhanced Notes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, Georgia, serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        /* Enhanced Note Window with Pages */
+        .note-window {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .note-window.open {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .note-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 800px;
+            height: 85%;
+            background: #faf8f3;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Note Header */
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .note-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .note-header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .note-header-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            border: none;
+            background: #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .note-header-btn:hover {
+            background: #e0e0e0;
+        }
+        
+        .note-close {
+            background: #ff3b30;
+            color: white;
+        }
+        
+        /* Pages Container */
+        .pages-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: repeating-linear-gradient(
+                to bottom,
+                transparent,
+                transparent 39px,
+                #e8e6e1 39px,
+                #e8e6e1 40px
+            );
+        }
+        
+        .pages-scroll {
+            height: 100%;
+            overflow-y: auto;
+            scroll-snap-type: y proximity;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .page {
+            min-height: 100%;
+            width: 100%;
+            position: relative;
+            scroll-snap-align: start;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .page-number {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .page-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            z-index: 1;
+        }
+        
+        .page-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            font-size: 16px;
+            line-height: 40px;
+            color: #333;
+            background: transparent;
+            border: none;
+            outline: none;
+            resize: none;
+            display: none;
+        }
+        
+        .page-content.active {
+            display: block;
+            pointer-events: auto;
+        }
+        
+        /* Page Indicator */
+        .page-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+        
+        .page-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: #ccc;
+            transition: all 0.3s;
+        }
+        
+        .page-dot.active {
+            width: 24px;
+            background: #007AFF;
+        }
+        
+        /* Floating Tools for Note Window */
+        .note-tools {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .note-tool-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 24px;
+            border: none;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            cursor: pointer;
+            font-size: 20px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .note-tool-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .note-tool-btn.active {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .note-tool-btn.eraser {
+            background: #ff3b30;
+            color: white;
+        }
+        
+        /* Tool Palette for Notes */
+        .note-palette {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 101;
+        }
+        
+        .note-palette.visible {
+            display: block;
+        }
+        
+        .palette-colors {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .color-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .color-btn.active {
+            border-color: #007AFF;
+            transform: scale(1.2);
+        }
+        
+        .thickness-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .thickness-preview {
+            width: 40px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .thickness-dot {
+            background: #000;
+            border-radius: 50%;
+        }
+        
+        /* Add Page Button */
+        .add-page-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            font-size: 28px;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.3s;
+        }
+        
+        .add-page-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Mode Toggle */
+        .mode-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 20px;
+            padding: 4px;
+            display: flex;
+            gap: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .mode-option {
+            padding: 6px 12px;
+            border-radius: 16px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .mode-option.active {
+            background: #007AFF;
+            color: white;
+        }
+        
+        /* Page Swipe Hint */
+        .swipe-hint {
+            position: absolute;
+            bottom: 140px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            opacity: 0;
+            animation: fadeInOut 3s;
+            pointer-events: none;
+        }
+        
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Enhanced Note Window -->
+    <div class="note-window" id="noteWindow">
+        <div class="note-container">
+            <div class="note-header">
+                <span class="note-title" id="noteTitle">Study Note</span>
+                <div class="note-header-buttons">
+                    <button class="note-header-btn" onclick="shareNote()">📤</button>
+                    <button class="note-header-btn" onclick="downloadNote()">💾</button>
+                    <button class="note-header-btn note-close" onclick="closeNoteWindow()">×</button>
+                </div>
+            </div>
+            
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button class="mode-option active" onclick="setNoteMode('draw')">Draw</button>
+                <button class="mode-option" onclick="setNoteMode('type')">Type</button>
+            </div>
+            
+            <!-- Pages Container -->
+            <div class="pages-container">
+                <div class="pages-scroll" id="pagesScroll">
+                    <div class="page" data-page="1">
+                        <span class="page-number">Page 1</span>
+                        <canvas class="page-canvas" id="pageCanvas1"></canvas>
+                        <textarea class="page-content" id="pageContent1" placeholder="Type your notes here..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Page Indicator -->
+            <div class="page-indicator" id="pageIndicator">
+                <span class="page-dot active"></span>
+            </div>
+            
+            <!-- Note Tools -->
+            <div class="note-tools">
+                <button class="note-tool-btn active" onclick="selectNoteTool('pen')">✏️</button>
+                <button class="note-tool-btn" onclick="selectNoteTool('highlighter')">🖍️</button>
+                <button class="note-tool-btn eraser" onclick="selectNoteTool('eraser')">🧹</button>
+                <button class="note-tool-btn" onclick="toggleNotePalette()">🎨</button>
+            </div>
+            
+            <!-- Tool Palette -->
+            <div class="note-palette" id="notePalette">
+                <div class="palette-colors">
+                    <div class="color-btn active" style="background:#000000" onclick="selectNoteColor('#000000')"></div>
+                    <div class="color-btn" style="background:#007AFF" onclick="selectNoteColor('#007AFF')"></div>
+                    <div class="color-btn" style="background:#FF3B30" onclick="selectNoteColor('#FF3B30')"></div>
+                    <div class="color-btn" style="background:#34C759" onclick="selectNoteColor('#34C759')"></div>
+                    <div class="color-btn" style="background:#FFCC00" onclick="selectNoteColor('#FFCC00')"></div>
+                </div>
+                <div class="thickness-control">
+                    <input type="range" id="noteThickness" min="1" max="20" value="2" style="flex:1">
+                    <div class="thickness-preview">
+                        <div class="thickness-dot" id="thicknessPreview" style="width:2px;height:2px"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Add Page Button -->
+            <button class="add-page-btn" onclick="addNewPage()">+</button>
+            
+            <!-- Swipe Hint -->
+            <div class="swipe-hint" id="swipeHint">Swipe up for new page</div>
+        </div>
+    </div>
+    
+    <script>
+        // Note window state
+        let noteMode = 'draw';
+        let currentNoteTool = 'pen';
+        let currentNoteColor = '#000000';
+        let currentNoteSize = 2;
+        let currentPage = 1;
+        let totalPages = 1;
+        let pageCanvases = {};
+        let pageContexts = {};
+        let pagePaths = {};
+        let isDrawingNote = false;
+        let noteCurrentPath = [];
+        
+        // Initialize first page
+        function initializeNotePage(pageNum) {
+            const canvas = document.getElementById(`pageCanvas${pageNum}`);
+            if (!canvas) return;
+            
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            
+            pageCanvases[pageNum] = canvas;
+            pageContexts[pageNum] = canvas.getContext('2d');
+            
+            if (!pagePaths[pageNum]) {
+                pagePaths[pageNum] = [];
+            }
+            
+            // Setup drawing events
+            canvas.addEventListener('pointerdown', (e) => startNoteDrawing(e, pageNum));
+            canvas.addEventListener('pointermove', (e) => drawNote(e, pageNum));
+            canvas.addEventListener('pointerup', (e) => stopNoteDrawing(e, pageNum));
+            canvas.addEventListener('pointercancel', (e) => stopNoteDrawing(e, pageNum));
+            
+            // Prevent scrolling while drawing
+            canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+            canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        }
+        
+        // Drawing functions for notes
+        function startNoteDrawing(e, pageNum) {
+            if (noteMode !== 'draw' || !e.isPrimary) return;
+            
+            isDrawingNote = true;
+            noteCurrentPath = [];
+            
+            const rect = e.target.getBoundingClientRect();
+            const point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                pressure: e.pressure || 0.5,
+                pointerType: e.pointerType
+            };
+            
+            noteCurrentPath.push(point);
+        }
+        
+        function drawNote(e, pageNum) {
+            if (!isDrawingNote || noteMode !== 'draw' || !e.isPrimary) return;
+            e.preventDefault();
+            
+            const rect = e.target.getBoundingClientRect();
+            const point = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+                pressure: e.pressure || 0.5,
+                pointerType: e.pointerType
+            };
+            
+            noteCurrentPath.push(point);
+            
+            if (noteCurrentPath.length > 1) {
+                const prev = noteCurrentPath[noteCurrentPath.length - 2];
+                drawNoteSegment(prev, point, pageNum);
+            }
+        }
+        
+        function stopNoteDrawing(e, pageNum) {
+            if (!isDrawingNote) return;
+            isDrawingNote = false;
+            
+            if (noteCurrentPath.length > 0) {
+                if (!pagePaths[pageNum]) {
+                    pagePaths[pageNum] = [];
+                }
+                pagePaths[pageNum].push({
+                    tool: currentNoteTool,
+                    color: currentNoteColor,
+                    size: currentNoteSize,
+                    path: [...noteCurrentPath]
+                });
+                saveNoteData();
+            }
+            noteCurrentPath = [];
+        }
+        
+        function drawNoteSegment(from, to, pageNum) {
+            const ctx = pageContexts[pageNum];
+            if (!ctx) return;
+            
+            ctx.save();
+            
+            let lineWidth = currentNoteSize;
+            if (to.pointerType === 'pen') {
+                lineWidth = currentNoteSize * (0.5 + to.pressure * 1.5);
+            }
+            
+            switch (currentNoteTool) {
+                case 'eraser':
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineWidth = currentNoteSize * 5;
+                    break;
+                case 'highlighter':
+                    ctx.globalAlpha = 0.3;
+                    ctx.lineWidth = currentNoteSize * 8;
+                    ctx.strokeStyle = currentNoteColor;
+                    break;
+                default: // pen
+                    ctx.lineWidth = lineWidth;
+                    ctx.strokeStyle = currentNoteColor;
+            }
+            
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(to.x, to.y);
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+        
+        // Add new page
+        function addNewPage() {
+            totalPages++;
+            const pagesScroll = document.getElementById('pagesScroll');
+            
+            const newPage = document.createElement('div');
+            newPage.className = 'page';
+            newPage.setAttribute('data-page', totalPages);
+            newPage.innerHTML = `
+                <span class="page-number">Page ${totalPages}</span>
+                <canvas class="page-canvas" id="pageCanvas${totalPages}"></canvas>
+                <textarea class="page-content" id="pageContent${totalPages}" placeholder="Type your notes here..."></textarea>
+            `;
+            
+            pagesScroll.appendChild(newPage);
+            
+            // Add page indicator
+            const indicator = document.getElementById('pageIndicator');
+            const dot = document.createElement('span');
+            dot.className = 'page-dot';
+            indicator.appendChild(dot);
+            
+            // Initialize the new page
+            setTimeout(() => {
+                initializeNotePage(totalPages);
+                // Scroll to new page
+                newPage.scrollIntoView({ behavior: 'smooth' });
+                updatePageIndicator(totalPages);
+            }, 100);
+        }
+        
+        // Page navigation
+        function updatePageIndicator(pageNum) {
+            currentPage = pageNum;
+            const dots = document.querySelectorAll('.page-dot');
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === pageNum - 1);
+            });
+        }
+        
+        // Detect page scroll
+        document.getElementById('pagesScroll')?.addEventListener('scroll', (e) => {
+            const scrollTop = e.target.scrollTop;
+            const pageHeight = e.target.querySelector('.page').offsetHeight;
+            const newPage = Math.floor(scrollTop / pageHeight) + 1;
+            if (newPage !== currentPage && newPage <= totalPages) {
+                updatePageIndicator(newPage);
+            }
+            
+            // Auto-add page when reaching bottom
+            if (scrollTop + e.target.clientHeight >= e.target.scrollHeight - 50) {
+                showSwipeHint();
+            }
+        });
+        
+        function showSwipeHint() {
+            const hint = document.getElementById('swipeHint');
+            if (hint) {
+                hint.style.animation = 'fadeInOut 3s';
+                setTimeout(() => {
+                    hint.style.animation = '';
+                }, 3000);
+            }
+        }
+        
+        // Tool selection
+        function selectNoteTool(tool) {
+            currentNoteTool = tool;
+            document.querySelectorAll('.note-tool-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        function selectNoteColor(color) {
+            currentNoteColor = color;
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        function toggleNotePalette() {
+            document.getElementById('notePalette')?.classList.toggle('visible');
+        }
+        
+        // Mode switching
+        function setNoteMode(mode) {
+            noteMode = mode;
+            document.querySelectorAll('.mode-option').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Toggle canvas/textarea for all pages
+            document.querySelectorAll('.page').forEach(page => {
+                const canvas = page.querySelector('.page-canvas');
+                const textarea = page.querySelector('.page-content');
+                
+                if (mode === 'type') {
+                    canvas.style.pointerEvents = 'none';
+                    textarea.classList.add('active');
+                } else {
+                    canvas.style.pointerEvents = 'auto';
+                    textarea.classList.remove('active');
+                }
+            });
+        }
+        
+        // Thickness control
+        document.getElementById('noteThickness')?.addEventListener('input', (e) => {
+            currentNoteSize = parseInt(e.target.value);
+            const preview = document.getElementById('thicknessPreview');
+            if (preview) {
+                preview.style.width = currentNoteSize + 'px';
+                preview.style.height = currentNoteSize + 'px';
+            }
+        });
+        
+        // Save/Load
+        function saveNoteData() {
+            const noteData = {
+                pages: pagePaths,
+                texts: {},
+                totalPages: totalPages
+            };
+            
+            for (let i = 1; i <= totalPages; i++) {
+                const textarea = document.getElementById(`pageContent${i}`);
+                if (textarea) {
+                    noteData.texts[i] = textarea.value;
+                }
+            }
+            
+            localStorage.setItem('bible-note-pages', JSON.stringify(noteData));
+        }
+        
+        function loadNoteData() {
+            const saved = localStorage.getItem('bible-note-pages');
+            if (saved) {
+                const noteData = JSON.parse(saved);
+                pagePaths = noteData.pages || {};
+                
+                // Recreate pages
+                for (let i = 2; i <= noteData.totalPages; i++) {
+                    addNewPage();
+                }
+                
+                // Load content
+                setTimeout(() => {
+                    for (let i = 1; i <= noteData.totalPages; i++) {
+                        if (noteData.texts[i]) {
+                            const textarea = document.getElementById(`pageContent${i}`);
+                            if (textarea) textarea.value = noteData.texts[i];
+                        }
+                        redrawPage(i);
+                    }
+                }, 500);
+            }
+        }
+        
+        function redrawPage(pageNum) {
+            const ctx = pageContexts[pageNum];
+            const paths = pagePaths[pageNum];
+            if (!ctx || !paths) return;
+            
+            ctx.clearRect(0, 0, pageCanvases[pageNum].width, pageCanvases[pageNum].height);
+            
+            for (const pathData of paths) {
+                const savedTool = currentNoteTool;
+                const savedColor = currentNoteColor;
+                const savedSize = currentNoteSize;
+                
+                currentNoteTool = pathData.tool;
+                currentNoteColor = pathData.color;
+                currentNoteSize = pathData.size;
+                
+                for (let i = 1; i < pathData.path.length; i++) {
+                    drawNoteSegment(pathData.path[i-1], pathData.path[i], pageNum);
+                }
+                
+                currentNoteTool = savedTool;
+                currentNoteColor = savedColor;
+                currentNoteSize = savedSize;
+            }
+        }
+        
+        function closeNoteWindow() {
+            saveNoteData();
+            document.getElementById('noteWindow')?.classList.remove('open');
+        }
+        
+        function shareNote() {
+            alert('Share functionality coming soon!');
+        }
+        
+        function downloadNote() {
+            // Convert to PDF or image
+            alert('Download functionality coming soon!');
+        }
+        
+        // Initialize on open
+        window.openNoteWindow = function() {
+            document.getElementById('noteWindow')?.classList.add('open');
+            initializeNotePage(1);
+            loadNoteData();
+            showSwipeHint();
+        }
+        
+        // Test opening
+        setTimeout(() => {
+            openNoteWindow();
+        }, 1000);
+    </script>
+</body>
+</html>
