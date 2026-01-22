@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Bible App - Apple Pencil Enhanced</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, Georgia, serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            font-size: 14px;
+        }
+        
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .content-area {
+            position: relative;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .bible-text {
+            display: flex;
+            gap: 30px;
+            padding: 30px;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #333;
+            background: white;
+            margin: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .bible-column {
+            flex: 1;
+            padding: 20px;
+            border-right: 1px solid #e0e0e0;
+        }
+        
+        .bible-column:last-child {
+            border-right: none;
+        }
+        
+        .bible-column h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .chinese-text {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-size: 17px;
+        }
+        
+        .english-text {
+            font-family: Georgia, serif;
+            font-size: 16px;
+        }
+        
+        .verse {
+            display: inline;
+            position: relative;
+        }
+        
+        .verse-number {
+            font-size: 12px;
+            vertical-align: super;
+            color: #007AFF;
+            font-weight: bold;
+            margin-right: 2px;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        /* Floating Pencil Palette - Apple Notes Style */
+        .pencil-palette {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            padding: 12px;
+            display: none;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        .pencil-palette.visible {
+            display: flex;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .palette-row {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .palette-tool {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: none;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .palette-tool:active {
+            transform: scale(0.95);
+        }
+        
+        .palette-tool.active {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .palette-tool.eraser {
+            background: #ff3b30;
+            color: white;
+        }
+        
+        .color-row {
+            display: flex;
+            gap: 6px;
+            padding: 4px;
+            background: rgba(0,0,0,0.02);
+            border-radius: 12px;
+        }
+        
+        .color-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .color-dot.active {
+            border-color: #007AFF;
+            transform: scale(1.2);
+        }
+        
+        .thickness-slider {
+            width: 100%;
+            margin: 8px 0;
+        }
+        
+        /* Floating Pencil Button */
+        .pencil-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 28px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            font-size: 24px;
+            box-shadow: 0 4px 20px rgba(0,123,255,0.3);
+            cursor: pointer;
+            z-index: 999;
+            transition: all 0.3s;
+        }
+        
+        .pencil-button:active {
+            transform: scale(0.95);
+        }
+        
+        .pencil-button.eraser-mode {
+            background: #ff3b30;
+        }
+        
+        /* Double-tap indicator */
+        .double-tap-indicator {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 2000;
+        }
+        
+        .double-tap-indicator.show {
+            opacity: 1;
+        }
+        
+        /* Scribble-like text input */
+        .scribble-input {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #007AFF;
+            border-radius: 12px;
+            padding: 12px;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .scribble-input.active {
+            display: block;
+        }
+        
+        .scribble-input input {
+            border: none;
+            outline: none;
+            font-size: 16px;
+            padding: 8px;
+            width: 200px;
+            background: transparent;
+        }
+        
+        /* Annotation buttons */
+        .annotation-button {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(0,123,255,0.3);
+            z-index: 50;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+        
+        .annotation-button.visible {
+            display: block;
+        }
+        
+        .annotation-button.has-notes {
+            background: #34c759;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        /* iOS-style toggle */
+        .ios-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 8px;
+        }
+        
+        .ios-toggle-label {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .ios-switch {
+            position: relative;
+            width: 42px;
+            height: 26px;
+            background: #c7c7cc;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .ios-switch.active {
+            background: #34c759;
+        }
+        
+        .ios-switch-thumb {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 11px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .ios-switch.active .ios-switch-thumb {
+            transform: translateX(16px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="title">📖 Bible App</span>
+        <div class="controls">
+            <select id="bookSelect">
+                <option value="John 3">John 3</option>
+                <option value="Genesis 1">Genesis 1</option>
+                <option value="Psalm 23">Psalm 23</option>
+            </select>
+            <button onclick="showAllNotes()">Show Notes</button>
+            <button onclick="saveNotes()">Save</button>
+        </div>
+    </div>
+    
+    <div class="content-area" id="contentArea">
+        <div class="bible-text" id="bibleText">
+            <div class="bible-column chinese-text">
+                <h3>中文和合本 (CUV)</h3>
+                <h2>约翰福音 3</h2>
+                <p>
+                    <span class="verse" data-verse="16"><span class="verse-number">16</span>神爱世人，甚至将他的独生子赐给他们，叫一切信他的，不至灭亡，反得永生。</span>
+                    <span class="verse" data-verse="17"><span class="verse-number">17</span>因为神差他的儿子降世，不是要定世人的罪，乃是要叫世人因他得救。</span>
+                </p>
+            </div>
+            <div class="bible-column english-text">
+                <h3>English NIV</h3>
+                <h2>John 3</h2>
+                <p>
+                    <span class="verse" data-verse="16"><span class="verse-number">16</span>For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.</span>
+                    <span class="verse" data-verse="17"><span class="verse-number">17</span>For God did not send his Son into the world to condemn the world, but to save the world through him.</span>
+                </p>
+            </div>
+        </div>
+        <canvas id="canvas" class="canvas-overlay"></canvas>
+        
+        <!-- Scribble-like input -->
+        <div class="scribble-input" id="scribbleInput">
+            <input type="text" id="scribbleText" placeholder="Write with pencil...">
+        </div>
+        
+        <!-- Annotation buttons container -->
+        <div id="annotationButtons"></div>
+    </div>
+    
+    <!-- Floating Pencil Button (like Apple Notes) -->
+    <button class="pencil-button" id="pencilButton" onclick="togglePalette()">✏️</button>
+    
+    <!-- Pencil Palette (Apple Notes style) -->
+    <div class="pencil-palette" id="pencilPalette">
+        <div class="palette-row">
+            <button class="palette-tool active" data-tool="pen" onclick="selectPaletteTool('pen')">✏️</button>
+            <button class="palette-tool" data-tool="marker" onclick="selectPaletteTool('marker')">🖊️</button>
+            <button class="palette-tool" data-tool="highlighter" onclick="selectPaletteTool('highlighter')">🖍️</button>
+            <button class="palette-tool eraser" data-tool="eraser" onclick="selectPaletteTool('eraser')">🧹</button>
+        </div>
+        <div class="color-row">
+            <div class="color-dot active" style="background: #000000" onclick="selectColor('#000000')"></div>
+            <div class="color-dot" style="background: #007AFF" onclick="selectColor('#007AFF')"></div>
+            <div class="color-dot" style="background: #FF3B30" onclick="selectColor('#FF3B30')"></div>
+            <div class="color-dot" style="background: #34C759" onclick="selectColor('#34C759')"></div>
+            <div class="color-dot" style="background: #FFCC00" onclick="selectColor('#FFCC00')"></div>
+        </div>
+        <input type="range" class="thickness-slider" id="thicknessSlider" min="1" max="20" value="2">
+        <div class="ios-toggle">
+            <span class="ios-toggle-label">Pressure</span>
+            <div class="ios-switch active" id="pressureToggle" onclick="togglePressure()">
+                <div class="ios-switch-thumb"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Double-tap indicator -->
+    <div class="double-tap-indicator" id="doubleTapIndicator">
+        <span id="indicatorText">Switched to Pen</span>
+    </div>
+    
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Drawing state
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#000000';
+        let currentSize = 2;
+        let usePressure = true;
+        let paths = [];
+        let currentPath = [];
+        
+        // Pencil state
+        let lastTapTime = 0;
+        let doubleTapTimeout = null;
+        
+        // Setup canvas
+        function setupCanvas() {
+            const container = document.getElementById('contentArea');
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        setupCanvas();
+        window.addEventListener('resize', setupCanvas);
+        
+        // Enhanced Apple Pencil detection
+        canvas.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'pen') {
+                // Check for double-tap using timing (WebKit doesn't expose button 5)
+                const currentTime = Date.now();
+                if (currentTime - lastTapTime < 300 && currentTime - lastTapTime > 50) {
+                    handleDoubleTap();
+                    lastTapTime = 0;
+                    return;
+                }
+                lastTapTime = currentTime;
+            }
+            
+            startDrawing(e);
+        });
+        
+        // Listen for touchforcechange for pressure on older Safari
+        canvas.addEventListener('touchforcechange', (e) => {
+            if (e.touches[0].force > 0) {
+                // Use force value for pressure-sensitive drawing
+                const pressure = e.touches[0].force / e.touches[0].maximumPossibleForce;
+                updatePressure(pressure);
+            }
+        });
+        
+        canvas.addEventListener('pointermove', draw);
+        canvas.addEventListener('pointerup', stopDrawing);
+        canvas.addEventListener('pointercancel', stopDrawing);
+        
+        function handleDoubleTap() {
+            // Toggle between pen and eraser
+            if (currentTool === 'eraser') {
+                selectPaletteTool('pen');
+            } else {
+                selectPaletteTool('eraser');
+            }
+            
+            // Show indicator
+            const indicator = document.getElementById('doubleTapIndicator');
+            const text = document.getElementById('indicatorText');
+            text.textContent = currentTool === 'eraser' ? 'Switched to Eraser' : 'Switched to Pen';
+            indicator.classList.add('show');
+            
+            clearTimeout(doubleTapTimeout);
+            doubleTapTimeout = setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 1500);
+        }
+        
+        function startDrawing(e) {
+            if (!e.isPrimary) return;
+            
+            isDrawing = true;
+            currentPath = [];
+            
+            const rect = canvas.getBoundingClientRect();
+            const point = {
+                x: (e.clientX - rect.left) * (canvas.width / rect.width),
+                y: (e.clientY - rect.top) * (canvas.height / rect.height),
+                pressure: e.pressure || 0.5,
+                tiltX: e.tiltX || 0,
+                tiltY: e.tiltY || 0,
+                twist: e.twist || 0,
+                pointerType: e.pointerType
+            };
+            
+            currentPath.push(point);
+        }
+        
+        function draw(e) {
+            if (!isDrawing || !e.isPrimary) return;
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            const point = {
+                x: (e.clientX - rect.left) * (canvas.width / rect.width),
+                y: (e.clientY - rect.top) * (canvas.height / rect.height),
+                pressure: e.pressure || 0.5,
+                tiltX: e.tiltX || 0,
+                tiltY: e.tiltY || 0,
+                twist: e.twist || 0,
+                pointerType: e.pointerType
+            };
+            
+            currentPath.push(point);
+            
+            if (currentPath.length > 1) {
+                const prev = currentPath[currentPath.length - 2];
+                drawSegment(prev, point);
+            }
+        }
+        
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            if (currentPath.length > 0) {
+                paths.push({
+                    tool: currentTool,
+                    color: currentColor,
+                    size: currentSize,
+                    path: [...currentPath]
+                });
+                saveToLocal();
+            }
+            currentPath = [];
+        }
+        
+        function drawSegment(from, to) {
+            ctx.save();
+            
+            // Calculate line width based on tool and pressure
+            let lineWidth = currentSize;
+            if (usePressure && to.pointerType === 'pen') {
+                lineWidth = currentSize * (0.5 + to.pressure * 1.5);
+                
+                // Add tilt effect for calligraphy
+                if (currentTool === 'pen' && (Math.abs(to.tiltX) > 20 || Math.abs(to.tiltY) > 20)) {
+                    lineWidth *= (1 + Math.abs(to.tiltX) / 90);
+                }
+            }
+            
+            // Configure drawing based on tool
+            switch (currentTool) {
+                case 'eraser':
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.lineWidth = currentSize * 3;
+                    break;
+                case 'highlighter':
+                    ctx.globalAlpha = 0.3;
+                    ctx.lineWidth = currentSize * 5;
+                    ctx.strokeStyle = currentColor;
+                    break;
+                case 'marker':
+                    ctx.globalAlpha = 0.8;
+                    ctx.lineWidth = lineWidth * 2;
+                    ctx.strokeStyle = currentColor;
+                    break;
+                default: // pen
+                    ctx.lineWidth = lineWidth;
+                    ctx.strokeStyle = currentColor;
+            }
+            
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // Smooth drawing with quadratic curves
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            const midX = (from.x + to.x) / 2;
+            const midY = (from.y + to.y) / 2;
+            ctx.quadraticCurveTo(from.x, from.y, midX, midY);
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+        
+        // Palette functions
+        function togglePalette() {
+            const palette = document.getElementById('pencilPalette');
+            palette.classList.toggle('visible');
+        }
+        
+        function selectPaletteTool(tool) {
+            currentTool = tool;
+            
+            // Update palette buttons
+            document.querySelectorAll('.palette-tool').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+            
+            // Update floating button
+            const pencilButton = document.getElementById('pencilButton');
+            if (tool === 'eraser') {
+                pencilButton.classList.add('eraser-mode');
+                pencilButton.textContent = '🧹';
+            } else {
+                pencilButton.classList.remove('eraser-mode');
+                pencilButton.textContent = '✏️';
+            }
+        }
+        
+        function selectColor(color) {
+            currentColor = color;
+            
+            // Update color dots
+            document.querySelectorAll('.color-dot').forEach(dot => {
+                dot.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        function togglePressure() {
+            const toggle = document.getElementById('pressureToggle');
+            toggle.classList.toggle('active');
+            usePressure = toggle.classList.contains('active');
+        }
+        
+        // Thickness slider
+        document.getElementById('thicknessSlider').addEventListener('input', (e) => {
+            currentSize = parseInt(e.target.value);
+        });
+        
+        function saveToLocal() {
+            const book = document.getElementById('bookSelect').value;
+            localStorage.setItem(`bible-pencil-${book}`, JSON.stringify(paths));
+        }
+        
+        function loadFromLocal() {
+            const book = document.getElementById('bookSelect').value;
+            const saved = localStorage.getItem(`bible-pencil-${book}`);
+            if (saved) {
+                paths = JSON.parse(saved);
+                redrawAll();
+            }
+        }
+        
+        function redrawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (const pathData of paths) {
+                const savedTool = currentTool;
+                const savedColor = currentColor;
+                const savedSize = currentSize;
+                
+                currentTool = pathData.tool;
+                currentColor = pathData.color;
+                currentSize = pathData.size;
+                
+                for (let i = 1; i < pathData.path.length; i++) {
+                    drawSegment(pathData.path[i-1], pathData.path[i]);
+                }
+                
+                currentTool = savedTool;
+                currentColor = savedColor;
+                currentSize = savedSize;
+            }
+        }
+        
+        function saveNotes() {
+            alert('Notes saved!');
+            saveToLocal();
+        }
+        
+        function showAllNotes() {
+            // Implementation for showing annotation buttons
+            alert('Showing all notes...');
+        }
+        
+        // Load on start
+        loadFromLocal();
+        
+        // Prevent default touch behaviors
+        document.addEventListener('touchstart', (e) => {
+            if (e.target === canvas) e.preventDefault();
+        }, { passive: false });
+        
+        document.addEventListener('touchmove', (e) => {
+            if (e.target === canvas) e.preventDefault();
+        }, { passive: false });
+        
+        // Handle Pencil hover (iOS 12.1+)
+        canvas.addEventListener('pointerover', (e) => {
+            if (e.pointerType === 'pen') {
+                canvas.style.cursor = 'crosshair';
+            }
+        });
+        
+        canvas.addEventListener('pointerout', (e) => {
+            canvas.style.cursor = 'default';
+        });
+        
+        // Detect Pencil proximity (experimental)
+        if (window.PointerEvent && 'altitudeAngle' in PointerEvent.prototype) {
+            canvas.addEventListener('pointermove', (e) => {
+                if (e.pointerType === 'pen' && !e.buttons) {
+                    // Pencil is hovering
+                    const proximity = e.height; // Approximate distance
+                    if (proximity < 20) {
+                        // Show hover preview
+                        canvas.style.opacity = '0.8';
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
