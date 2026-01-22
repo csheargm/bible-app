@@ -180,10 +180,28 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             z-index: 50;
             display: none;
+            animation: pulse 2s infinite;
         }
         
         .annotation-button.visible {
             display: block;
+        }
+        
+        .annotation-button.has-notes {
+            background: #34c759;
+            animation: pulse-green 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes pulse-green {
+            0% { transform: scale(1); background: #34c759; }
+            50% { transform: scale(1.15); background: #30d158; }
+            100% { transform: scale(1); background: #34c759; }
         }
         
         /* Note window */
@@ -470,37 +488,28 @@
         resizeCanvas();
         window.addEventListener('resize', resizeCanvas);
         
-        // Fixed Apple Pencil double-tap detection
-        let lastPointerDownTime = 0;
-        let pointerDownCount = 0;
-        
+        // Apple Pencil hardware double-tap detection using button property
+        // Button values: 0 = no button, 1 = primary (tip), 5 = eraser/double-tap
         canvas.addEventListener('pointerdown', (e) => {
             if (e.pointerType === 'pen') {
-                const currentTime = Date.now();
-                
-                // Reset counter if too much time has passed
-                if (currentTime - lastPointerDownTime > 500) {
-                    pointerDownCount = 0;
-                }
-                
-                pointerDownCount++;
-                lastPointerDownTime = currentTime;
-                
-                // Check for double-tap (2 taps within 500ms)
-                if (pointerDownCount === 2) {
+                // Check if this is a double-tap gesture (button value 5 or barrel button)
+                if (e.button === 5 || e.buttons === 32) {
                     toggleEraser();
-                    pointerDownCount = 0;
-                    return; // Don't start drawing on double-tap
+                    return;
                 }
                 
-                // Start drawing after a small delay to check for double-tap
-                setTimeout(() => {
-                    if (pointerDownCount === 1 && inputMode === 'draw') {
-                        startDrawing(e);
-                    }
-                }, 50);
+                if (inputMode === 'draw') {
+                    startDrawing(e);
+                }
             } else if (inputMode === 'draw') {
                 startDrawing(e);
+            }
+        });
+        
+        // Alternative: Listen for pointerupdate to detect double-tap
+        canvas.addEventListener('pointerupdate', (e) => {
+            if (e.pointerType === 'pen' && e.buttons === 32) {
+                toggleEraser();
             }
         });
         
@@ -736,16 +745,34 @@
             return null;
         }
         
-        function showAnnotationButton(bounds) {
+        function showAnnotationButton(bounds, annotationId = null) {
             const btn = document.getElementById('annotationBtn');
             btn.style.left = (bounds.x + bounds.width + 10) + 'px';
             btn.style.top = (bounds.y + bounds.height / 2 - 15) + 'px';
             btn.classList.add('visible');
             
-            // Auto-hide after 5 seconds
+            // If specific annotation ID provided, set it as the last annotation
+            if (annotationId) {
+                lastAnnotation = annotations.find(a => a.id === annotationId);
+                // Check if this annotation has notes and add green color
+                if (extendedNotes[annotationId]) {
+                    btn.classList.add('has-notes');
+                    btn.innerHTML = '📄';  // Different icon for existing notes
+                } else {
+                    btn.classList.remove('has-notes');
+                    btn.innerHTML = '📝';
+                }
+            } else {
+                btn.classList.remove('has-notes');
+                btn.innerHTML = '📝';
+            }
+            
+            // Auto-hide after 5 seconds for new annotations, longer for existing
+            const hideDelay = annotationId ? 10000 : 5000;
             setTimeout(() => {
                 btn.classList.remove('visible');
-            }, 5000);
+                btn.classList.remove('has-notes');
+            }, hideDelay);
         }
         
         // Note window functions with proper saving
@@ -998,10 +1025,22 @@
             }
             if (savedAnnotations) {
                 annotations = JSON.parse(savedAnnotations);
+                // Show annotation buttons for existing annotations with notes
+                showExistingAnnotationButtons();
             }
             if (savedExtended) {
                 extendedNotes = JSON.parse(savedExtended);
             }
+        }
+        
+        function showExistingAnnotationButtons() {
+            // Check each annotation to see if it has associated notes
+            annotations.forEach(annotation => {
+                if (extendedNotes[annotation.id]) {
+                    // Show button for this annotation
+                    showAnnotationButton(annotation.bounds, annotation.id);
+                }
+            });
         }
         
         function saveNotes() {
